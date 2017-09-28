@@ -53,14 +53,14 @@ def throw_error(error_text = None):
     msgBox.exec_()
     return 0
 
-class TreeWidgetItem( QtGui.QTreeWidgetItem ):
+class TreeWidgetItem(QtGui.QTreeWidgetItem ):
     def __init__(self, parent=None):
         QtGui.QTreeWidgetItem.__init__(self, parent)
 
     def __lt__(self, otherItem):
         column = self.treeWidget().sortColumn()
         try:
-            return float( self.text(column) ) > float( otherItem.text(column) )
+            return float(self.text(column) ) > float( otherItem.text(column) )
         except ValueError:
             return self.text(column) > otherItem.text(column)
 
@@ -364,7 +364,12 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
         exported_df = pd.DataFrame(data = np.vstack([fname,start,end,duration,tid]).T,columns = ['filename','start','end','duration','transmitter'] )
 
         save_name = save_name.strip('.csv')
-        exported_df.to_csv(save_name+'.csv')
+
+        try:
+            exported_df.to_csv(save_name+'.csv')
+        except PermissionError:
+            throw_error('Error - permission error! Is the file open somewhere else?')
+            return 1
 
     def predictions_tree_export_csv(self):
         if self.h5directory:
@@ -400,7 +405,11 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
                                                                                                        'duration','transmitter', 'real_start', 'real_end'] )
 
         save_name = save_name.strip('.csv')
-        exported_df.to_csv(save_name+'.csv')
+        try:
+            exported_df.to_csv(save_name+'.csv')
+        except PermissionError:
+            throw_error('Error - permission error! Is the file open somewhere else?')
+            return 1
 
     def master_tree_selection(self):
         if not self.deleteing:                     # this is a hack as was being called as I was clearing the items
@@ -502,7 +511,12 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
         # therefore first check if can use the same tid or not...
         current_spinbox_id = self.tid_spinBox.value()
         if current_spinbox_id not in self.valid_h5_tids:
-            self.tid_spinBox.setValue(self.valid_h5_tids[0]) # no reason to default to first
+            try:
+                self.tid_spinBox.setValue(self.valid_h5_tids[0]) # no reason to default to first
+            except IndexError:
+                # there are no valid h5 ids!
+                throw_error('No valid Transmitter IDs?')
+                return 0
             # here you add something to hold id if needed
             #print('File tid changed as previous tid not valid')
             # this will now automatically call the tid_spinBox_change method - as you have tid changed it
@@ -532,9 +546,15 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
         self.tid_spinbox_just_changed = True
 
     def tid_spinBox_handling(self):
+        '''
+
+        #Todo This method is bad/crude
+
+        '''
+        # tid_spinbox.valueChanged connects to here
         #print('tid spin box handling called')
         try:
-            # tid_spinbox.valueChanged connects to here
+
             new_val = self.tid_spinBox.value()
             #print(time.time(), 'New spinbox value is ', new_val)
             set_tid_box = True
@@ -546,7 +566,6 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
 
             elif new_val > max(self.valid_h5_tids): # this is rolling 0
                 new_tid = self.valid_h5_tids[0]
-
             else:
                 if self.previously_displayed_tid is not None:
                     step = new_val - self.previously_displayed_tid
@@ -929,7 +948,7 @@ class MainGui(QtGui.QMainWindow, check_preds_design.Ui_MainWindow):
                          str(''),
                          str('')]
 
-        new_item = QtGui.QTreeWidgetItem(details_entry)
+        new_item = TreeWidgetItem(details_entry)
         return new_item
 
     def add_new_entry_to_tree_widget(self,xpos):
